@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>C Monkey</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="editor">
+        <div class="ace-editor" id="editor">#include &lt;stdio.h&gt;
+
+int main() {
+
+    //your code
+
+    return 0;
+}</div>
+    </div>
+    <div class="output">
+        <div class="stdin">
+            <textarea id="stdin" placeholder="Standard Input..."></textarea>
+        </div>
+        <pre class="console" id="console"></pre>
+    </div>
+    <button id="run">RUN</button>
+    <div class="status" id="status">Loaded.</div>
+
+    <script src="/ace/ace.js"></script>
+    <script src="/components/jQuery/dist/jquery.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

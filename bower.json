@@ -1,0 +1,28 @@
+{
+  "name": "cmonkey",
+  "description": "A Quick-Test-Bed for C",
+  "main": "index.js",
+  "authors": [
+    "Omran Jamal <o.jamal97@gmail.com>"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "testbed",
+    "test",
+    "compile",
+    "run",
+    "c"
+  ],
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "public/components/",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jQuery": "^2.2.3"
+  }
+}
