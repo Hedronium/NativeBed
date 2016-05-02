@@ -4,10 +4,11 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 
 var dir = './tmp';
-var processes = {};
 
 var app = express();
 var expressWs = require('express-ws')(app);
+
+var processes = {};
 
 app.use(express.static('public'));
 
@@ -16,167 +17,95 @@ app.get('/', function (req, res) {
 });
 
 app.ws('/code', function (connection, req) {
-    var uid = Math.random() + '' + Math.random() + '' + Math.random();
-    console.log(`Client Connected. (${uid})`);
+    var uid = Math.round(Math.random()*10000000)+'';
 
-    connection.send(JSON.stringify({
-        type: 'uid',
-        uid: uid
-    }));
+    console.log('Client Connected.');
+
+    connection.on('close', function () {
+        fs.unlink('./tmp/' + uid);
+        fs.unlink('./tmp/' + uid + '.c');
+
+        if (processes[uid] && processes[uid].kill) {
+            processes[uid].kill();
+        }
+    });
 
     connection.on('message', function (msg) {
-        console.log('Code Recieved.');
+        console.log('Client Messaged.');
 
         if (processes[uid] && processes[uid].kill) {
             processes[uid].kill();
         }
 
-        connection.send(JSON.stringify({
-            type: 'code-recieved'
-        }));
-
         var data = JSON.parse(msg);
 
-        fs.writeFile(`./tmp/${uid}.c`, data.code, function(err) {
-            if (err) {
-                connection.send(JSON.stringify({
-                    type: 'file-error'
-                }));
-
+        fs.writeFile('./tmp/'+uid+'.c', data.code, function(err) {
+            if(err) {
                 return console.log(err);
             }
 
-            console.log('File written.');
-
-            connection.send(JSON.stringify({
-                type: 'file-written'
-            }));
-
-            console.log('Compiling...');
-
             var compiler = spawn('gcc', [
-                `./tmp/${uid}.c`, '-o', `./tmp/${uid}`
+                './tmp/'+uid+'.c', '-o', './tmp/'+uid
             ]);
 
-            connection.send(JSON.stringify({
-                type: 'compiler-started'
-            }));
-
-            compiler.stdout.on('data', (data) => {
-                console.info(`compiler: ${data}`);
-
+            compiler.stdout.on('data', function (data) {
                 connection.send(JSON.stringify({
-                    type: 'compiler-output',
-                    message: data
+                    console: data.toString('utf8')
                 }));
             });
 
-            compiler.stderr.on('data', (data) => {
-                console.error(`compiler: ${data}`);
-
+            compiler.stderr.on('data', function (data) {
                 connection.send(JSON.stringify({
-                    type: 'compiler-error',
-                    message: data.toString('utf8')
+                    console: data.toString('utf8')
                 }));
             });
 
-            compiler.on('close', (code) => {
-                console.log(`compiler exited with code ${code}`);
-
+            compiler.on('close', function (code) {
                 if (code == 0) {
-                    console.log('compiler: Compilation Success.');
-
                     connection.send(JSON.stringify({
-                        type: 'compiler-success'
+                        console: '\nrunning program...\n\n'
                     }));
-                } else {
-                    console.error('compiler: Compilation Error.');
 
-                    connection.send(JSON.stringify({
-                        type: 'compiler-error'
-                    }));
+                    var program = processes[uid] = spawn('./tmp/'+uid);
+                    var closed = false;
+                    var ended = false;
+
+                    console.log(program.connected);
+
+                    if (program.stdin && !closed && !ended) {
+                        try {
+                            program.stdin.write(data.stdin);
+                        } catch (e) {
+                            console.log(e);
+                        }
+                    }
+
+                    program.stdin.on('error', function () {
+                        ended = true;
+                    });
+
+                    program.stdout.on('data', function (data) {
+                        connection.send(JSON.stringify({
+                            console: data.toString('utf8')
+                        }));
+                    });
+
+                    program.stderr.on('data', function (data) {
+                        connection.send(JSON.stringify({
+                            console: data.toString('utf8')
+                        }));
+                    });
+
+                    program.on('close', function (code) {
+                        closed = true;
+
+                        connection.send(JSON.stringify({
+                            console: '\n\nProgram Shutdown: Code - ' + code
+                        }));
+                    });
                 }
             });
         });
-    });
-});
-
-app.ws('/program', function (connection, req) {
-    connection.on('message', function (msg) {
-        var data = JSON.parse(msg);
-        var uid = data.uid;
-
-        if (data.type == 'run') {
-            if (processes[uid] && processes[uid].kill) {
-                processes[uid].kill();
-            }
-
-            var process = spawn('./tmp/'+uid);
-            processes[uid] = process;
-
-            connection.send(JSON.stringify({
-                type: 'started'
-            }));
-
-            process.stdout.on('data', (data) => {
-                console.info(`process: ${data}`);
-
-                connection.send(JSON.stringify({
-                    type: 'output',
-                    message: data.toString('utf8')
-                }));
-            });
-
-            process.stderr.on('data', (data) => {
-                console.error(`process: ${data}`);
-
-                connection.send(JSON.stringify({
-                    type: 'error',
-                    message: data.toString('utf8')
-                }));
-            });
-
-            process.on('close', function (code) {
-                console.log('Process exited with code:', code);
-
-                if (code == 0) {
-                    console.log('Graceful Shutdown.');
-
-                    connection.send(JSON.stringify({
-                        type: 'shutdown',
-                        code: code
-                    }));
-
-                } else {
-                    console.error('Shutdown with Error.');
-
-                    connection.send(JSON.stringify({
-                        type: 'shutdown-error',
-                        code: code
-                    }));
-                }
-            });
-
-        } else if (data.type == 'stop') {
-
-            var process = processes[uid];
-
-            if (processes[uid] && processes[uid].kill) {
-                processes[uid].kill();
-            }
-
-        } else if (data.type == 'stdin') {
-            console.log('Standard Input Recieved...');
-
-            var process = processes[uid];
-
-            if (processes[uid] && processes[uid].stdin) {
-                console.log('Writing Standard Input...');
-
-                process.stdin.write(data.message);
-                // process.stdin.write('\n');
-            }
-        }
     });
 });
 
