@@ -22,8 +22,8 @@ app.ws('/code', function (connection, req) {
     console.log('Client Connected.');
 
     connection.on('close', function () {
-        fs.unlink('./tmp/' + uid);
-        fs.unlink('./tmp/' + uid + '.c');
+        fs.unlink('./tmp/' + uid, function () {});
+        fs.unlink('./tmp/' + uid + '.c', function () {});
 
         if (processes[uid] && processes[uid].kill) {
             processes[uid].kill();

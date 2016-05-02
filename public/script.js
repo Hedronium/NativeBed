@@ -24,6 +24,11 @@ code_soc.onmessage = function (msg) {
     $('#console').append(data.console);
 };
 
+code_soc.onerror = code_soc.onclose = function () {
+    alert('Lost Connection.');
+    window.location = 'http://localhost:8090/';
+};
+
 var execute = function () {
     $('#console').html('');
 

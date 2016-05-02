@@ -2,7 +2,6 @@
   "name": "cmonkey",
   "version": "1.0.0",
   "description": "A Quick-Test-Bed for C",
-  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,5 +17,9 @@
   "dependencies": {
     "express": "^4.13.4",
     "express-ws": "^2.0.0-rc.1"
+  },
+  "preferGlobal": true,
+  "bin": {
+    "nativebed": "index.js"
   }
 }
